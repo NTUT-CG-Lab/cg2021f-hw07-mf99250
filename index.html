@@ -53,6 +53,9 @@
 			<a id="choose-dir" class="my-btn disabled"> 選擇檔案夾 </a>
 		</div>
 		<div id="info"> 等待 Dicom... </div>
+		<div>
+			<canvas id="my-canvas"></canvas>
+		</div>
 		<div id="size"></div>
 		<div> 
 			<input style="width:500px" type="text" placeholder="檔名_長_寬_高_uint<位元>" id="file-name"> 
@@ -95,13 +98,45 @@
 					var dimension = dicom2Raw.getDim();
 					document.getElementById('size').innerText = '尺寸: ' + dimension.x + ' x ' + dimension.y + ' x ' + dimension.z;
 
-
+					//a(dimension.x, dimension.y);
+					window.dicom2Raw = dicom2Raw;
 
 					dicom2Raw.concatnate(function(){
+						document.getElementById('download-button-8bit').setAttribute('class', 'my-btn allow');
 						document.getElementById('download-button-16bit').setAttribute('class', 'my-btn allow');
 
 						document.getElementById('info').innerText = '傳換完成';
 
+						//show image
+						var image = new Uint16Array(dicom2Raw.getImagePixel(Math.floor(dimension.z/2)));
+						var imageCanvas = document.getElementById("my-canvas");
+						imageCanvas.setAttribute("width", 512);
+						imageCanvas.setAttribute("height", 512);
+						var ctx = imageCanvas.getContext("2d");
+
+						var imageData = ctx.getImageData(0, 0, imageCanvas.width, imageCanvas.height);
+						for (var i = 0; i < image.byteLength; i++) {
+							imageData.data[4 * i] = (image[i] * 255) / 4095;
+							imageData.data[4 * i + 1] = (image[i] * 255) / 4095;
+							imageData.data[4 * i + 2] = (image[i] * 255) / 4095;
+							imageData.data[4 * i + 3] = 255;
+						}
+						ctx.putImageData(imageData, 0, 0);
+
+						//download 8bit
+						document.getElementById("download-button-8bit").addEventListener("click", function () {
+							var filename = document.getElementById("file-name").value;
+
+							var uint16 = new Uint16Array(dicom2Raw.rawData);
+							var uint8 = new Uint8Array(uint16, uint16.byteOffset, uint16.byteLength / 2);
+
+							Dicom2Raw.downloadData(
+								filename + ".raw", 
+								uint8
+							);
+						});
+
+						//download 16bit
 						document.getElementById('download-button-16bit').addEventListener('click', function(){
 							var filename = document.getElementById('file-name').value;
 
@@ -151,18 +186,17 @@
 				chooseBtn.done = 1;
 			}
 
-
 			/**
 			 * 自評表 QAQ
 			 * 有做到再勾阿!!
 			*/
-			var so = new ScoreOutputer("你的學號");
+			var so = new ScoreOutputer("109598036");
 			so.installCSS(function(){
 				so.addChild("成功讀取範例程式所附的 DICOM 檔案", 6, true);
 				so.addChild("轉換 DICOM 序列為 RAW 檔案", 1, true);
 				so.addChild("成功下載轉換好的 RAW 檔案", 1, true);
-				so.addChild("可下載 8 bit 或 16 bit 的 RAW 檔案", 1, false);
-				so.addChild("在網頁中顯示中間的圖像", 1, false);
+				so.addChild("可下載 8 bit 或 16 bit 的 RAW 檔案", 1, true);
+				so.addChild("在網頁中顯示中間的圖像", 1, true);
 				
 				so.renderModal(
 					document.body,
@@ -179,7 +213,9 @@
 				);
 			});
 		};
+
 	</script>
+	
 </body>
 
 </html>
